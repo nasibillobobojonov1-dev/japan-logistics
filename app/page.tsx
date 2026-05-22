@@ -22,7 +22,7 @@ interface GuideStep   { icon: string; title: string; desc: string; }
 interface StoreInfo   { id: StoreId; desc: string; features: string[]; }
 interface FaqItem     { q: string; a: string; }
 interface ContactItem { platform: string; handle: string; url: string; desc: string; abbr: string; }
-interface VideoItem   { title: string; desc: string; }
+interface VideoItem   { title: string; desc: string; youtubeId?: string; }
 
 interface LangContent {
   nav: [string, string, string, string];
@@ -511,24 +511,34 @@ export default function Home() {
           <div className="grid gap-6 md:grid-cols-3">
             {t.videos.items.map((video, i) => (
               <div key={i} className="group rounded-[2rem] border border-zinc-200 bg-white overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1">
-                {/* video placeholder */}
-                <div className="relative aspect-video bg-zinc-900 flex items-center justify-center">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle,#3f0000,#000)]" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-700 text-white shadow-2xl group-hover:scale-110 transition-transform">
-                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 ml-1">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
+                {video.youtubeId ? (
+                  <div className="relative aspect-video">
+                    <iframe
+                      src={`https://www.youtube.com/embed/${video.youtubeId}`}
+                      title={video.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      className="absolute inset-0 w-full h-full"
+                    />
+                  </div>
+                ) : (
+                  <div className="relative aspect-video bg-zinc-900 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle,#3f0000,#000)]" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-700 text-white shadow-2xl group-hover:scale-110 transition-transform">
+                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 ml-1">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div className="absolute bottom-3 left-4 text-xs font-black text-white/50">
+                      {t.videos.placeholder}
+                    </div>
+                    <div className="absolute top-3 left-3 rounded-full bg-red-700 px-2.5 py-1 text-xs font-black text-white">
+                      0{i + 1}
                     </div>
                   </div>
-                  <div className="absolute bottom-3 left-4 text-xs font-black text-white/50">
-                    {t.videos.placeholder}
-                  </div>
-                  <div className="absolute top-3 left-3 rounded-full bg-red-700 px-2.5 py-1 text-xs font-black text-white">
-                    0{i + 1}
-                  </div>
-                </div>
-                {/* card body */}
+                )}
                 <div className="p-6">
                   <h3 className="text-lg font-black tracking-tight">{video.title}</h3>
                   <p className="mt-2 text-sm leading-6 text-zinc-500">{video.desc}</p>

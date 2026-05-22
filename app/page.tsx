@@ -61,7 +61,7 @@ const content: Record<Lang, LangContent> = {
       subtitle: "Подробные видео по каждому шагу",
       placeholder: "Видео будет добавлено",
       items: [
-        { title: "Регистрация в боте",        desc: "Пошагово: от нажатия /start до получения Client ID" },
+        { title: "Регистрация в боте",        desc: "Пошагово: от нажатия /start до получения Client ID", youtubeId: "yT-fRiYhMPY" },
         { title: "Как создать заказ",         desc: "От ссылки на товар до подтверждения администратором" },
         { title: "Оплата и отслеживание",     desc: "Как оплатить, прикрепить чек и следить за статусом" },
       ],
@@ -129,7 +129,7 @@ const content: Record<Lang, LangContent> = {
       subtitle: "Har bir qadam bo'yicha batafsil videolar",
       placeholder: "Video tez orada qo'shiladi",
       items: [
-        { title: "Botda ro'yxatdan o'tish",  desc: "/start bosishdan Client ID olishgacha bosqichma-bosqich" },
+        { title: "Botda ro'yxatdan o'tish",  desc: "/start bosishdan Client ID olishgacha bosqichma-bosqich", youtubeId: "yT-fRiYhMPY" },
         { title: "Buyurtma yaratish",        desc: "Mahsulot havolasidan admin tasdig'igacha" },
         { title: "To'lov va kuzatish",       desc: "To'lash, chek yuklash va status kuzatish" },
       ],
@@ -197,7 +197,7 @@ const content: Record<Lang, LangContent> = {
       subtitle: "Ар бир кадам боюнча толук видеолор",
       placeholder: "Видео жакында кошулат",
       items: [
-        { title: "Ботто катталуу",          desc: "/start баскычтан Client ID алуугакандай кадамдуу видео" },
+        { title: "Ботто катталуу",          desc: "/start баскычтан Client ID алуугакандай кадамдуу видео", youtubeId: "yT-fRiYhMPY" },
         { title: "Заказ кантип түзүү",      desc: "Товар шилтемесинен админ тастыгына чейин" },
         { title: "Төлөм жана байкоо",       desc: "Кантип төлөп, чек жүктөп, статусту байкоо" },
       ],
@@ -265,7 +265,7 @@ const content: Record<Lang, LangContent> = {
       subtitle: "Detailed videos for each step",
       placeholder: "Video coming soon",
       items: [
-        { title: "Bot Registration",        desc: "Step-by-step from /start to receiving your Client ID" },
+        { title: "Bot Registration",        desc: "Step-by-step from /start to receiving your Client ID", youtubeId: "yT-fRiYhMPY" },
         { title: "How to Place an Order",   desc: "From product link to admin confirmation" },
         { title: "Payment & Tracking",      desc: "How to pay, attach receipt and track your order status" },
       ],

@@ -2,335 +2,318 @@
 
 import { useState } from "react";
 
-type Lang = "RU" | "UZ" | "KG" | "EN";
+type Lang = "RU" | "UZ" | "KG" | "KZ";
 
-const BOT_LINK = "https://t.me/Japan_Logistics";
+const BOT_LINK = "https://t.me/Japan_Logistics_bot";
+const NAV_IDS = ["registration", "shops", "faq", "commission"] as const;
+const RATES: Record<Lang, number> = { KG: 0.05, KZ: 0.08, UZ: 0.10, RU: 0.14 };
 
-const STORES = [
-  { id: "uniqlo",  name: "Uniqlo",          abbr: "UQ", url: "https://www.uniqlo.com/jp/",     color: "#E40101" },
-  { id: "gu",      name: "GU",              abbr: "GU", url: "https://www.gu-global.com/jp/",  color: "#222222" },
-  { id: "amazon",  name: "Amazon Japan",    abbr: "AZ", url: "https://www.amazon.co.jp/",      color: "#FF9900" },
-  { id: "rakuten", name: "Rakuten",         abbr: "R",  url: "https://www.rakuten.co.jp/",     color: "#BF0000" },
-  { id: "yahoo",   name: "Yahoo! Shopping", abbr: "Y!", url: "https://shopping.yahoo.co.jp/", color: "#FF0033" },
-  { id: "mercari", name: "Mercari",         abbr: "M",  url: "https://www.mercari.com/jp/",    color: "#E83830" },
-  { id: "kakaku",  name: "Kakaku.com",      abbr: "K",  url: "https://kakaku.com/",            color: "#0070C0" },
-] as const;
+function GuideImg({ src, alt, placeholder }: { src: string; alt: string; placeholder: string }) {
+  const [err, setErr] = useState(false);
+  if (err) {
+    return (
+      <div className="w-full rounded-2xl bg-zinc-100 border-2 border-dashed border-zinc-300 flex items-center justify-center py-16">
+        <span className="text-zinc-400 text-sm font-medium">{placeholder}</span>
+      </div>
+    );
+  }
+  return <img src={src} alt={alt} onError={() => setErr(true)} className="w-full rounded-2xl shadow-sm" />;
+}
 
-type StoreId = (typeof STORES)[number]["id"];
+function BotBtn({ label }: { label: string }) {
+  return (
+    <a href={BOT_LINK} target="_blank" rel="noopener noreferrer"
+      className="inline-flex rounded-2xl bg-red-700 px-6 py-3 font-black text-white shadow-lg shadow-red-200 hover:bg-red-800 transition-colors">
+      {label}
+    </a>
+  );
+}
 
-interface GuideStep   { icon: string; title: string; desc: string; }
-interface StoreInfo   { id: StoreId; desc: string; features: string[]; }
-interface FaqItem     { q: string; a: string; }
-interface ContactItem { platform: string; handle: string; url: string; desc: string; abbr: string; }
-interface VideoItem   { title: string; desc: string; youtubeId?: string; }
+function VideoBlock({ placeholder }: { placeholder: string }) {
+  return (
+    <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-zinc-900">
+      <div className="absolute inset-0 bg-[radial-gradient(circle,#3f0000,#000)] flex items-center justify-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-700 text-white shadow-2xl">
+          <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 ml-1"><path d="M8 5v14l11-7z" /></svg>
+        </div>
+      </div>
+      <div className="absolute bottom-3 left-4 text-xs font-bold text-white/40">{placeholder}</div>
+    </div>
+  );
+}
 
-interface LangContent {
+interface FaqItem { q: string; lines: string[]; isList?: boolean; note?: string; hasWarning?: boolean; }
+interface StoreItem { name: string; url: string; linkText: string; }
+
+interface LC {
   nav: [string, string, string, string];
   botBtn: string;
-  hero: { badge: string; title: string; subtitle: string; };
-  guide: { title: string; subtitle: string; steps: GuideStep[]; };
-  videos: { title: string; subtitle: string; placeholder: string; items: VideoItem[]; };
-  stores: { title: string; subtitle: string; openBtn: string; items: StoreInfo[]; };
-  faq: { title: string; subtitle: string; items: FaqItem[]; };
-  contacts: { title: string; subtitle: string; botCta: string; items: ContactItem[]; };
+  welcome: string;
+  navCards: { title: string; subtitle: string }[];
+  reg: {
+    title: string; s11title: string; s11text: string;
+    s12title: string; s12fields: string[];
+    s13title: string; s13items: string[];
+    s14title: string; s14warning: string;
+    imgPlaceholder: string;
+  };
+  shops: { title: string; videoPlaceholder: string; items: StoreItem[]; };
+  faq: { title: string; items: FaqItem[]; };
+  commission: {
+    title: string; tableTitle: string;
+    countryNames: Record<Lang, string>;
+    tableNote: string; calcTitle: string;
+    calcCountryLabel: string; calcPriceLabel: string;
+    calcDeliveryLabel: string; calcCodLabel: string;
+    calcBtn: string; calcResultLabel: string;
+    calcOptions: { value: Lang; label: string }[];
+    supportTitle: string; closing: string;
+  };
   footer: string;
 }
 
-const content: Record<Lang, LangContent> = {
+const content: Record<Lang, LC> = {
   RU: {
-    nav: ["Инструкция", "Магазины", "FAQ", "Контакты"],
+    nav: ["Регистрация", "Магазины", "FAQ", "Комиссия"],
     botBtn: "Вернуться в бот",
-    hero: {
-      badge: "База знаний для клиентов",
-      title: "Japan Logistics\nHelp Center",
-      subtitle: "Полное руководство по Telegram-боту: регистрация, заказы из Японии, оплата и отслеживание доставки.",
+    welcome: "Добро пожаловать в руководство по использованию Telegram-бота компании Japan Logistics (отдел продаж). Пройдите инструкцию пошагово.",
+    navCards: [
+      { title: "Регистрация и инструкция", subtitle: "Пошаговое руководство по боту" },
+      { title: "Обзор магазинов", subtitle: "Uniqlo, Amazon, Rakuten" },
+      { title: "Вопросы и ответы", subtitle: "Часто задаваемые вопросы" },
+      { title: "Комиссия и поддержка", subtitle: "Тарифы и контакты" },
+    ],
+    reg: {
+      title: "Регистрация и инструкция",
+      s11title: "1.1 Старт и выбор языка", s11text: "Нажмите старт и выберите язык",
+      s12title: "1.2 Регистрация",
+      s12fields: ["ФИО","Страна (куда доставить товар)","Номер телефона получателя в стране доставки","Номер WhatsApp","Электронная почта","Telegram (@username или ссылка)","Точный адрес получателя","Пароль (минимум 8 неповторяющихся символов, пример: Qwer1202)"],
+      s13title: "1.3 Обзор интерфейса бота",
+      s13items: ["Ваш ID в клиентской базе","Покупки и количество за каждый месяц","Новый заказ — оформить предварительный заказ","Мои заказы — статусы и история","Бухгалтерия — отчёты по заказам (суммы, количество, отменённые) за год/месяц/неделю/день","Профиль — изменение данных (имя, контакты, адрес)","Предзаказ — добавить товары для заказа позже"],
+      s14title: "1.4 Видео-инструкция",
+      s14warning: "Ссылки, артикул (код товара на японских сайтах), размер и цвет товара указывайте точно как на японском сайте. При неправильном заполнении заказ может быть отменён.",
+      imgPlaceholder: "Изображение будет добавлено",
     },
-    guide: {
-      title: "Инструкция по боту",
-      subtitle: "От регистрации до получения заказа — 5 простых шагов",
-      steps: [
-        { icon: "01", title: "Регистрация",       desc: "Нажмите «Регистрация» в боте. Введите имя, номер телефона, страну и адрес доставки. Займёт не более 2 минут." },
-        { icon: "02", title: "Получение Client ID", desc: "После регистрации вы получите уникальный Client ID. Используйте его в поле адреса при заказе на японских сайтах." },
-        { icon: "03", title: "Создание заказа",   desc: "Найдите товар, скопируйте ссылку и отправьте в бот. Укажите размер, цвет и количество — администратор рассчитает стоимость." },
-        { icon: "04", title: "Оплата",            desc: "Получите расчёт: цена товара + комиссия + доставка по Японии. Переведите сумму и прикрепите скриншот чека." },
-        { icon: "05", title: "Отслеживание",      desc: "Следите за статусом в личном кабинете: новый → ожидает оплаты → оплачен → покупается → куплен → завершён." },
-      ],
-    },
-    videos: {
-      title: "Видео-инструкции",
-      subtitle: "Подробные видео по каждому шагу",
-      placeholder: "Видео будет добавлено",
+    shops: {
+      title: "Обзор магазинов", videoPlaceholder: "Видео будет добавлено",
       items: [
-        { title: "Регистрация в боте",        desc: "Пошагово: от нажатия /start до получения Client ID", youtubeId: "yT-fRiYhMPY" },
-        { title: "Как создать заказ",         desc: "От ссылки на товар до подтверждения администратором" },
-        { title: "Оплата и отслеживание",     desc: "Как оплатить, прикрепить чек и следить за статусом" },
-      ],
-    },
-    stores: {
-      title: "Японские магазины",
-      subtitle: "Популярные онлайн-магазины для заказа через Japan Logistics",
-      openBtn: "Открыть магазин",
-      items: [
-        { id: "uniqlo",  desc: "Японская сеть одежды. Качественные базовые вещи по доступным ценам.",                          features: ["Базовый гардероб", "Тепло-технологии", "Сезонные коллекции"] },
-        { id: "gu",      desc: "Молодёжный бренд от группы Uniqlo. Тренды сезона по низким ценам.",                           features: ["Модные тренды", "Доступные цены", "Широкий ассортимент"] },
-        { id: "amazon",  desc: "Крупнейший маркетплейс Японии. Электроника, косметика, одежда и многое другое.",               features: ["Быстрая доставка", "Официальные бренды", "Огромный выбор"] },
-        { id: "rakuten", desc: "Популярная торговая площадка с тысячами магазинов и частыми акциями.",                         features: ["Акции и купоны", "Много продавцов", "Баллы лояльности"] },
-        { id: "yahoo",   desc: "Yahoo! Shopping — большой маркетплейс с аукционами и выгодными ценами.",                      features: ["Аукционы", "Кэшбэк PayPay", "Эксклюзивные товары"] },
-        { id: "mercari", desc: "Японский C2C сервис. Новые и б/у товары от частных продавцов по низким ценам.",               features: ["Б/у товары", "Низкие цены", "Уникальные находки"] },
-        { id: "kakaku",  desc: "Сервис сравнения цен. Найдите самую выгодную цену на любой товар в Японии.",                  features: ["Сравнение цен", "Рейтинги товаров", "Отзывы покупателей"] },
+        { name: "Uniqlo Japan", url: "https://www.uniqlo.com/jp/", linkText: "Открыть Uniqlo" },
+        { name: "Amazon Japan", url: "https://www.amazon.co.jp/", linkText: "Открыть Amazon" },
+        { name: "Rakuten Ichiba", url: "https://ichiba.rakuten.co.jp/", linkText: "Открыть Rakuten" },
       ],
     },
     faq: {
-      title: "Часто задаваемые вопросы",
-      subtitle: "Ответы на самые популярные вопросы",
+      title: "Вопросы и ответы",
       items: [
-        { q: "Сколько стоит доставка?",              a: "Доставка по Японии до склада — от 500 JPY. Международная доставка рассчитывается по фактическому или объёмному весу (берётся больший). Итоговая стоимость зависит от страны назначения и размера посылки." },
-        { q: "Как рассчитывается объёмный вес?",     a: "Объёмный вес = (длина × ширина × высота в см) ÷ 5000. Если объёмный вес превышает фактический, расчёт ведётся по объёмному. Рекомендуем уточнять у администратора перед заказом крупных товаров." },
-        { q: "Какие способы оплаты принимаются?",    a: "Принимаем USDT (TRC20, ERC20), наличные в офисе, банковский перевод. Реквизиты пришлёт администратор после подтверждения заказа. Оплату необходимо подтвердить скриншотом чека." },
-        { q: "Сколько времени занимает доставка?",   a: "Обычно 10–25 рабочих дней: 3–7 дней на покупку товара в Японии, плюс 7–18 дней на международную доставку. Сроки могут варьироваться в зависимости от загруженности таможни." },
-        { q: "Что означают статусы заказа?",         a: "«Новый» — заявка принята. «Ожидает оплаты» — администратор рассчитал стоимость. «Оплачен» — платёж получен. «Покупается» — администратор оформляет покупку. «Куплен» — товар едет на склад. «Завершён» — доставлен вам." },
-        { q: "Могу ли я отменить заказ?",            a: "Отмена возможна до статуса «Покупается». После начала покупки отмена не гарантируется. Напишите администратору в боте — он рассмотрит запрос." },
+        { q: "Можно ли заказывать БАДы, витамины, косметику, дорогие бренды?", lines: ["Да. Наши логисты доставляют товары под ключ с растаможкой. Вам остаётся только получить груз по прибытии в ваш город."] },
+        { q: "Есть ли ограничения по весу, габаритам и стоимости?", lines: ["Нет, кроме базовых ограничений авиаперевозки и расчёта крупногабаритного груза."] },
+        { q: "Как осуществляется оплата?", lines: ["Оплата на внутренний счёт в вашей стране.", "⚠️ Внимание! Не производите оплату вне нашей платформы. Принимать оплату могут только официальные администраторы из наших официальных соцсетей (уточняйте у поддержки)."], hasWarning: true },
+        { q: "В каких случаях товар не подлежит возврату?", lines: ["После оплаты заказа","При неправильно указанных данных заказа клиентом","При незначительных повреждениях при транспортировке","При задержке логистики или таможни менее 45 дней"], isList: true },
+        { q: "Страховка", lines: ["Утеря товара — возврат средств в течение 10 рабочих дней после подтверждения факта утери","Повреждение содержимого товара — 100% возврат","Повреждение товара на 40–50% — частичный возврат пропорционально повреждению","Задержка логистики/таможни более 45 дней — возврат средств"], isList: true, note: "Подобные ситуации крайне редки — мы работаем давно и дорожим репутацией." },
       ],
     },
-    contacts: {
-      title: "Контакты",
-      subtitle: "Выберите удобный канал для связи",
-      botCta: "Написать в Telegram-бот",
-      items: [
-        { platform: "Telegram",  handle: "@Japan_Logistics",  url: BOT_LINK,                                    desc: "Основной канал поддержки",    abbr: "TG" },
-        { platform: "Instagram", handle: "@japan.logistics",  url: "https://instagram.com/japan.logistics",     desc: "Новости, акции, обновления",  abbr: "IG" },
-        { platform: "WhatsApp",  handle: "Japan Logistics",   url: "https://wa.me/",                            desc: "Для срочных вопросов",        abbr: "WA" },
-      ],
+    commission: {
+      title: "Комиссия и поддержка", tableTitle: "Таблица комиссий",
+      countryNames: { KG: "Кыргызстан", KZ: "Казахстан", UZ: "Узбекистан", RU: "Россия" },
+      tableNote: "от стоимости товара на сайте с учётом внутренней доставки до склада в Токио и комиссии за наложенный платёж",
+      calcTitle: "Калькулятор комиссии",
+      calcCountryLabel: "Страна", calcPriceLabel: "Стоимость товара на сайте (¥)",
+      calcDeliveryLabel: "Стоимость доставки до склада в Токио (¥)",
+      calcCodLabel: "Наложенный платёж (фиксировано)", calcBtn: "Рассчитать", calcResultLabel: "Итог",
+      calcOptions: [{ value: "KG", label: "Кыргызстан (5%)" },{ value: "KZ", label: "Казахстан (8%)" },{ value: "UZ", label: "Узбекистан (10%)" },{ value: "RU", label: "Россия (14%)" }],
+      supportTitle: "Поддержка",
+      closing: "Желаем успешного сотрудничества и удачных покупок!",
     },
     footer: "Япония → Узбекистан / Кыргызстан / Казахстан / Россия",
   },
 
   UZ: {
-    nav: ["Yo'riqnoma", "Do'konlar", "FAQ", "Kontaktlar"],
+    nav: ["Ro'yxatdan o'tish", "Do'konlar", "FAQ", "Komissiya"],
     botBtn: "Botga qaytish",
-    hero: {
-      badge: "Mijozlar uchun bilim bazasi",
-      title: "Japan Logistics\nHelp Center",
-      subtitle: "Telegram-botdan foydalanish bo'yicha to'liq qo'llanma: ro'yxatdan o'tish, buyurtma, to'lov va yetkazish.",
+    welcome: "Japan Logistics kompaniyasining Telegram-boti bo'yicha qo'llanmaga xush kelibsiz (sotish bo'limi). Ko'rsatmalarni bosqichma-bosqich bajaring.",
+    navCards: [
+      { title: "Ro'yxatdan o'tish va ko'rsatma", subtitle: "Botdan foydalanish bo'yicha qo'llanma" },
+      { title: "Do'konlarga sharh", subtitle: "Uniqlo, Amazon, Rakuten" },
+      { title: "Savol va javoblar", subtitle: "Ko'p so'raladigan savollar" },
+      { title: "Komissiya va qo'llab-quvvatlash", subtitle: "Tariflar va kontaktlar" },
+    ],
+    reg: {
+      title: "Ro'yxatdan o'tish va ko'rsatma",
+      s11title: "1.1 Start va til tanlash", s11text: "Start tugmasini bosing va tilni tanlang",
+      s12title: "1.2 Ro'yxatdan o'tish",
+      s12fields: ["To'liq ism","Mamlakat (tovar yetkaziladigan joy)","Yetkazish mamlakatidagi qabul qiluvchining telefon raqami","WhatsApp raqami","Elektron pochta","Telegram (@username yoki havola)","Qabul qiluvchining aniq manzili","Parol (kamida 8 ta takrorlanmaydigan belgi, masalan: Qwer1202)"],
+      s13title: "1.3 Bot interfeysiga sharh",
+      s13items: ["Mijozlar bazasidagi sizning ID'ingiz","Har oyda xaridlar va miqdori","Yangi buyurtma — dastlabki buyurtma berish","Mening buyurtmalarim — statuslar va tarix","Buxgalteriya — buyurtmalar hisoboti (summalar, miqdor, bekor qilinganlar) yil/oy/hafta/kun","Profil — ma'lumotlarni o'zgartirish (ism, kontaktlar, manzil)","Oldindan buyurtma — keyinroq buyurtma berish uchun tovarlar qo'shish"],
+      s14title: "1.4 Video ko'rsatma",
+      s14warning: "Havolalar, artikul (yapon saytlaridagi tovar kodi), o'lcham va rang yapon saytidagi kabi aniq ko'rsatilsin. Noto'g'ri to'ldirish buyurtmaning bekor qilinishiga olib kelishi mumkin.",
+      imgPlaceholder: "Rasm keyinroq qo'shiladi",
     },
-    guide: {
-      title: "Bot bo'yicha yo'riqnoma",
-      subtitle: "Ro'yxatdan buyurtma olishgacha — 5 oddiy qadam",
-      steps: [
-        { icon: "01", title: "Ro'yxatdan o'tish",  desc: "Botdagi «Ro'yxatdan o'tish» tugmasini bosing. Ism, telefon, mamlakat va manzilni kiriting. 2 daqiqadan oshmaydi." },
-        { icon: "02", title: "Client ID olish",    desc: "Ro'yxatdan o'tgach noyob Client ID beriladi. Uni yapon saytlarida buyurtma berishda manzil maydoniga kiriting." },
-        { icon: "03", title: "Buyurtma yaratish",  desc: "Mahsulotni toping, havolasini nusxa olib botga yuboring. O'lcham, rang va sonni ko'rsating — admin narxni hisoblaydi." },
-        { icon: "04", title: "To'lov",             desc: "Hisob-kitob oling: mahsulot narxi + komissiya + Yaponiya ichida yetkazish. Summa o'tkazib, chek skrinshot yuklang." },
-        { icon: "05", title: "Kuzatish",           desc: "Shaxsiy kabinetda statusni kuzating: yangi → to'lov kutilmoqda → to'landi → sotib olinmoqda → sotib olindi → tugatildi." },
-      ],
-    },
-    videos: {
-      title: "Video yo'riqnomalar",
-      subtitle: "Har bir qadam bo'yicha batafsil videolar",
-      placeholder: "Video tez orada qo'shiladi",
+    shops: {
+      title: "Do'konlarga sharh", videoPlaceholder: "Video keyinroq qo'shiladi",
       items: [
-        { title: "Botda ro'yxatdan o'tish",  desc: "/start bosishdan Client ID olishgacha bosqichma-bosqich", youtubeId: "yT-fRiYhMPY" },
-        { title: "Buyurtma yaratish",        desc: "Mahsulot havolasidan admin tasdig'igacha" },
-        { title: "To'lov va kuzatish",       desc: "To'lash, chek yuklash va status kuzatish" },
-      ],
-    },
-    stores: {
-      title: "Yapon do'konlar",
-      subtitle: "Japan Logistics orqali buyurtma uchun mashhur onlayn do'konlar",
-      openBtn: "Do'konni ochish",
-      items: [
-        { id: "uniqlo",  desc: "Yapon kiyim tarmog'i. Sifatli asosiy kiyimlar qulay narxlarda.",                              features: ["Asosiy garderob", "Isitish texnologiyasi", "Mavsumiy kolleksiyalar"] },
-        { id: "gu",      desc: "Uniqlo guruhidan yoshlar brendi. Mavsumiy trendlar arzon narxlarda.",                          features: ["Zamonaviy trendlar", "Arzon narxlar", "Keng assortiment"] },
-        { id: "amazon",  desc: "Yaponiyaning eng yirik marketpleysi. Elektronika, kosmetika, kiyim va boshqalar.",             features: ["Tez yetkazish", "Rasmiy brendlar", "Keng tanlov"] },
-        { id: "rakuten", desc: "Minglab do'konlar va tez-tez aksiyalar bo'lgan mashhur savdo maydoni.",                        features: ["Aksiyalar va kuponlar", "Ko'p sotuvchilar", "Sadoqat ballari"] },
-        { id: "yahoo",   desc: "Yahoo! Shopping — auktsionlar va qulay narxlar bilan yirik marketpleys.",                     features: ["Auktsionlar", "PayPay cashback", "Eksklyuziv tovarlar"] },
-        { id: "mercari", desc: "Yaponiya C2C xizmati. Shaxsiy sotuvchilardan yangi va ishlatilgan tovarlar.",                 features: ["Ishlatilgan tovarlar", "Past narxlar", "Noyob topilmalar"] },
-        { id: "kakaku",  desc: "Narx solishtirish xizmati. Yaponiyada istalgan tovar uchun eng yaxshi narxni toping.",        features: ["Narq solishtirish", "Tovar reytinglari", "Xaridorlar sharhlari"] },
+        { name: "Uniqlo Japan", url: "https://www.uniqlo.com/jp/", linkText: "Uniqlo'ni ochish" },
+        { name: "Amazon Japan", url: "https://www.amazon.co.jp/", linkText: "Amazon'ni ochish" },
+        { name: "Rakuten Ichiba", url: "https://ichiba.rakuten.co.jp/", linkText: "Rakuten'ni ochish" },
       ],
     },
     faq: {
-      title: "Ko'p so'raladigan savollar",
-      subtitle: "Eng mashhur savollarga javoblar",
+      title: "Savol va javoblar",
       items: [
-        { q: "Yetkazish qancha turadi?",              a: "Yaponiya ichida omborga yetkazish — 500 JPYdan. Xalqaro yetkazish haqiqiy yoki hajmiy og'irlik (kattasi olinadi) bo'yicha hisoblanadi. Yakuniy narx mamlakat va paket o'lchamiga bog'liq." },
-        { q: "Hajmiy og'irlik qanday hisoblanadi?",   a: "Hajmiy og'irlik = (uzunlik × kenglik × balandlik sm) ÷ 5000. Hajmiy og'irlik haqiqiydan katta bo'lsa, u bo'yicha hisoblanadi. Katta tovarlar uchun adminga so'rang." },
-        { q: "Qanday to'lov usullari qabul qilinadi?", a: "USDT (TRC20, ERC20), ofisda naqd pul, bank o'tkazmasi qabul qilinadi. Buyurtma tasdig'idan so'ng admin rekvizit yuboradi. To'lovni chek skrinshoti bilan tasdiqlash kerak." },
-        { q: "Yetkazish qancha vaqt oladi?",          a: "Odatda 10–25 ish kuni: Yaponiyada tovar sotib olish 3–7 kun + xalqaro yetkazish 7–18 kun. Muddatlar bojxona yuklamasiga qarab o'zgarishi mumkin." },
-        { q: "Buyurtma statuslari nima anglatadi?",   a: "«Yangi» — ariza qabul qilindi. «To'lov kutilmoqda» — admin narxni hisobladi. «To'landi» — to'lov qabul qilindi. «Sotib olinmoqda» — admin buyurtma bermoqda. «Sotib olindi» — tovar omborga ketmoqda. «Tugatildi» — yetkazildi." },
-        { q: "Buyurtmani bekor qila olamanmi?",       a: "«Sotib olinmoqda» statusigacha bekor qilish mumkin. Xarid boshlangandan keyin bekor qilish kafolatlanmaydi. Botda adminga yozing — u so'rovni ko'rib chiqadi." },
+        { q: "BADlar, vitaminlar, kosmetika, qimmatbaho brendlarni buyurtma qilish mumkinmi?", lines: ["Ha. Logistlarimiz bojxona tozalash bilan tovarlarni kalit ostida yetkazib beradi. Siz faqat shahringizga kelganida yuklarni qabul qilishingiz kerak."] },
+        { q: "Og'irlik, o'lcham va narx bo'yicha cheklovlar bormi?", lines: ["Yo'q, aviayuk tashishning asosiy cheklovlari va yirik o'lchamli yuklarni hisoblashdan tashqari."] },
+        { q: "To'lov qanday amalga oshiriladi?", lines: ["Mamlakatingizdagi ichki hisob raqamiga to'lov.","⚠️ Diqqat! Platformamizdan tashqarida to'lov qilmang. To'lovni faqat rasmiy ijtimoiy tarmoqlarimizdan rasmiy adminlar qabul qilishi mumkin (qo'llab-quvvatlash xizmatiga so'rang)."], hasWarning: true },
+        { q: "Tovar qaysi hollarda qaytarilmaydi?", lines: ["Buyurtma uchun to'lovdan so'ng","Xaridor tomonidan noto'g'ri ko'rsatilgan buyurtma ma'lumotlari bilan","Tashish paytida kichik shikastlanish bilan","45 kundan kam logistika yoki bojxona kechikishi bilan"], isList: true },
+        { q: "Sug'urta", lines: ["Tovar yo'qolishi — yo'qolish faktini tasdiqlagandan keyin 10 ish kuni ichida mablag' qaytarish","Tovar mazmunining shikastlanishi — 100% qaytarish","Tovarning 40–50% shikastlanishi — shikastlanishga mutanosib qisman qaytarish","45 kundan ortiq logistika/bojxona kechikishi — mablag' qaytarish"], isList: true, note: "Bunday holatlar juda kam uchraydi — biz uzoq vaqtdan beri ishlaymiz va obro'yimizni qadrlaymiz." },
       ],
     },
-    contacts: {
-      title: "Kontaktlar",
-      subtitle: "Qulay kanal orqali biz bilan bog'laning",
-      botCta: "Telegram-botga yozish",
-      items: [
-        { platform: "Telegram",  handle: "@Japan_Logistics",  url: BOT_LINK,                                 desc: "Asosiy qo'llab-quvvatlash kanali",  abbr: "TG" },
-        { platform: "Instagram", handle: "@japan.logistics",  url: "https://instagram.com/japan.logistics",  desc: "Yangiliklar, aksiyalar",            abbr: "IG" },
-        { platform: "WhatsApp",  handle: "Japan Logistics",   url: "https://wa.me/",                         desc: "Shoshilinch savollar uchun",         abbr: "WA" },
-      ],
+    commission: {
+      title: "Komissiya va qo'llab-quvvatlash", tableTitle: "Komissiya jadvali",
+      countryNames: { KG: "Qirg'iziston", KZ: "Qozog'iston", UZ: "O'zbekiston", RU: "Rossiya" },
+      tableNote: "saytdagi tovar narxidan Tokiodagi omborga ichki yetkazish va to'lov komissiyasi hisobga olingan holda",
+      calcTitle: "Komissiya kalkulyatori",
+      calcCountryLabel: "Mamlakat", calcPriceLabel: "Saytdagi tovar narxi (¥)",
+      calcDeliveryLabel: "Tokio omboriga yetkazish narxi (¥)",
+      calcCodLabel: "Naqd to'lov (belgilangan)", calcBtn: "Hisoblash", calcResultLabel: "Jami",
+      calcOptions: [{ value: "KG", label: "Qirg'iziston (5%)" },{ value: "KZ", label: "Qozog'iston (8%)" },{ value: "UZ", label: "O'zbekiston (10%)" },{ value: "RU", label: "Rossiya (14%)" }],
+      supportTitle: "Qo'llab-quvvatlash",
+      closing: "Muvaffaqiyatli hamkorlik va yaxshi xaridlar tilaymiz!",
     },
     footer: "Yaponiya → O'zbekiston / Qirg'iziston / Qozog'iston / Rossiya",
   },
 
   KG: {
-    nav: ["Нускама", "Дүкөндөр", "FAQ", "Байланыш"],
+    nav: ["Каттоо", "Дүкөндөр", "FAQ", "Комиссия"],
     botBtn: "Ботко кайтуу",
-    hero: {
-      badge: "Кардарлар үчүн маалымат базасы",
-      title: "Japan Logistics\nHelp Center",
-      subtitle: "Telegram-ботту колдонуу боюнча толук колдонмо: катталуу, заказ, төлөм жана жеткирүү.",
+    welcome: "Japan Logistics компаниясынын Telegram-боту боюнча колдонмого кош келиңиз (сатуу бөлүмү). Нускаманы кадам сайын аткарыңыз.",
+    navCards: [
+      { title: "Каттоо жана нускама", subtitle: "Бот боюнча кадамдуу колдонмо" },
+      { title: "Дүкөндөргө чолосу", subtitle: "Uniqlo, Amazon, Rakuten" },
+      { title: "Суроолор жана жооптор", subtitle: "Көп берилүүчү суроолор" },
+      { title: "Комиссия жана колдоо", subtitle: "Тарифтер жана байланыш" },
+    ],
+    reg: {
+      title: "Каттоо жана нускама",
+      s11title: "1.1 Старт жана тил тандоо", s11text: "Старт баскычын басып, тил тандаңыз",
+      s12title: "1.2 Каттоо",
+      s12fields: ["Толук аты-жөнү","Өлкө (товар жеткирилүүчү жер)","Жеткирүү өлкөсүндөгү алуучунун телефон номери","WhatsApp номери","Электрондук почта","Telegram (@username же шилтеме)","Алуучунун так дареги","Сырсөз (кеминде 8 кайталанбаган символ, мисалы: Qwer1202)"],
+      s13title: "1.3 Бот интерфейсине чолосу",
+      s13items: ["Кардарлар базасындагы сиздин ID'иңиз","Ар айдагы сатып алуулар жана сан","Жаңы заказ — алдын ала заказ берүү","Менин заказдарым — статустар жана тарых","Бухгалтерия — заказдар боюнча отчёт (суммалар, сан, жокко чыгарылгандар) жыл/ай/апта/күн","Профиль — маалыматтарды өзгөртүү (аты, байланыш, дарек)","Алдын ала заказ — кийинчерек заказ берүү үчүн товарлар кошуу"],
+      s14title: "1.4 Видео нускама",
+      s14warning: "Шилтемелерди, артикулду (японский сайттардагы товардын коду), өлчөмдү жана түстү японский сайттагыдай так жазыңыз. Туура эмес толтурулса, заказ жокко чыгарылышы мүмкүн.",
+      imgPlaceholder: "Сүрөт кийинчерек кошулат",
     },
-    guide: {
-      title: "Бот боюнча нускама",
-      subtitle: "Каттоодон заказды алуугакандай — 5 жөнөкөй кадам",
-      steps: [
-        { icon: "01", title: "Катталуу",          desc: "Боттогу «Катталуу» баскычын басыңыз. Атыңызды, телефонуңузду, өлкөңүздү жана дарегиңизди жазыңыз. 2 мүнөттөн ашпайт." },
-        { icon: "02", title: "Client ID алуу",    desc: "Катталгандан кийин уникалдуу Client ID берилет. Аны японский сайттарда заказ берүүдө дарек талаасына жазыңыз." },
-        { icon: "03", title: "Заказ түзүү",       desc: "Товарды табып, шилтемесин ботко жөнөтүңүз. Өлчөмүн, түсүн жана санын айтыңыз — админ баасын эсептейт." },
-        { icon: "04", title: "Төлөм",             desc: "Эсеп алыңыз: товар баасы + комиссия + Японийядагы жеткирүү. Сумманы которуп, чек скриншотун жүктөңүз." },
-        { icon: "05", title: "Байкоо",            desc: "Жеке кабинеттен статусту байкаңыз: жаңы → төлөм күтүлүүдө → төлөндү → сатып алынууда → сатылды → аяктады." },
-      ],
-    },
-    videos: {
-      title: "Видео нускамалар",
-      subtitle: "Ар бир кадам боюнча толук видеолор",
-      placeholder: "Видео жакында кошулат",
+    shops: {
+      title: "Дүкөндөргө чолосу", videoPlaceholder: "Видео кийинчерек кошулат",
       items: [
-        { title: "Ботто катталуу",          desc: "/start баскычтан Client ID алуугакандай кадамдуу видео", youtubeId: "yT-fRiYhMPY" },
-        { title: "Заказ кантип түзүү",      desc: "Товар шилтемесинен админ тастыгына чейин" },
-        { title: "Төлөм жана байкоо",       desc: "Кантип төлөп, чек жүктөп, статусту байкоо" },
-      ],
-    },
-    stores: {
-      title: "Японский дүкөндөр",
-      subtitle: "Japan Logistics аркылуу заказ берүүгө ылайыктуу белгилүү онлайн дүкөндөр",
-      openBtn: "Дүкөндү ачуу",
-      items: [
-        { id: "uniqlo",  desc: "Японский кийим тармагы. Жакшы сапаттагы жөнөкөй кийимдер арзан баада.",                      features: ["Негизги гардероб", "Жылытуу технологиясы", "Мезгилдик коллекциялар"] },
-        { id: "gu",      desc: "Uniqlo тобунун жаштар бренди. Тренддүү кийимдер арзан баада.",                                features: ["Заманбап тренддер", "Арзан баалар", "Кеңири ассортимент"] },
-        { id: "amazon",  desc: "Японийянын эң ири маркетплейси. Электроника, косметика, кийим жана башкалар.",                features: ["Тез жеткирүү", "Расмий брендер", "Кеңири тандоо"] },
-        { id: "rakuten", desc: "Миңдеген дүкөндөр жана жыш акциялары бар белгилүү соода аянтчасы.",                           features: ["Акциялар жана купондор", "Көп саатучулар", "Берилгендик баллдары"] },
-        { id: "yahoo",   desc: "Yahoo! Shopping — аукциондор жана ыңгайлуу баалары бар ири маркетплейс.",                    features: ["Аукциондор", "PayPay кэшбэк", "Эксклюзивдүү товарлар"] },
-        { id: "mercari", desc: "Японийя C2C кызматы. Жеке саатучулардан жаңы жана колдонулган товарлар.",                    features: ["Колдонулган товарлар", "Арзан баалар", "Уникалдуу табылгалар"] },
-        { id: "kakaku",  desc: "Баа салыштыруу кызматы. Японийядагы каалаган товардын эң жакшы баасын тааныңыз.",            features: ["Баа салыштыруу", "Товар рейтингдери", "Сатып алуучу пикирлери"] },
+        { name: "Uniqlo Japan", url: "https://www.uniqlo.com/jp/", linkText: "Uniqlo ачуу" },
+        { name: "Amazon Japan", url: "https://www.amazon.co.jp/", linkText: "Amazon ачуу" },
+        { name: "Rakuten Ichiba", url: "https://ichiba.rakuten.co.jp/", linkText: "Rakuten ачуу" },
       ],
     },
     faq: {
-      title: "Көп берилүүчү суроолор",
-      subtitle: "Эң популярдуу суроолорго жооптор",
+      title: "Суроолор жана жооптор",
       items: [
-        { q: "Жеткирүү канча турат?",              a: "Японийяда складга чейин — 500 JPYдан. Эл аралык жеткирүү чыныгы же көлөм салмак (чоңу алынат) боюнча эсептелет. Акыркы баасы өлкөгө жана посылканын өлчөмүнө жараша болот." },
-        { q: "Көлөм салмак кантип эсептелет?",     a: "Көлөм салмак = (узундук × туурасы × бийиктиги см) ÷ 5000. Көлөм салмак чыныгыдан чоң болсо, ал боюнча эсептелет. Чоң товарлар үчүн админден сураныз." },
-        { q: "Кандай төлөм жолдору кабыл алынат?", a: "USDT (TRC20, ERC20), офисте нак акча, банк которуу кабыл алынат. Заказ тастыкталгандан кийин админ реквизит жөнөтөт. Төлөмдү чек скриншоту менен тастыктоо керек." },
-        { q: "Жеткирүү канча убакыт алат?",        a: "Адатта 10–25 жумуш күн: Японийяда товар сатып алуу 3–7 күн + эл аралык жеткирүү 7–18 күн. Мөөнөттөр бажыхананын жүктөмүнө жараша өзгөрүшү мүмкүн." },
-        { q: "Заказдын статустары эмнени билдирет?", a: "«Жаңы» — арыз кабыл алынды. «Төлөм күтүлүүдө» — админ баасын эсептеди. «Төлөндү» — төлөм кабыл алынды. «Сатып алынууда» — админ буйруртат. «Сатылды» — товар складга жолдо. «Аяктады» — жеткирилди." },
-        { q: "Заказды жокко чыгара аламбы?",       a: "«Сатып алынууда» статусуна чейин жокко чыгарса болот. Сатып алуу башталгандан кийин кепилдик берилбейт. Ботто админге жазыңыз — ал өтүнүчтү карайт." },
+        { q: "БАД, витаминдер, косметика, кымбат брендтерди заказдаса болобу?", lines: ["Ооба. Биздин логисттер товарларды бажы тазалоо менен ачкыч астында жеткиришет. Сизге шаарыңызга жеткенде гана жүктү алып калуу керек."] },
+        { q: "Салмак, габарит жана баа боюнча чектөөлөр барбы?", lines: ["Жок, авиатасымалдоонун негизги чектөөлөрүнөн жана чоң габариттүү жүктүн эсебинен башка."] },
+        { q: "Төлөм кантип жүргүзүлөт?", lines: ["Өлкөңүздөгү ички эсепке төлөм.","⚠️ Эскертүү! Биздин платформадан тышкары төлөм жасабаңыз. Төлөмдү биздин расмий социалдык тармактардагы расмий администраторлор гана кабыл ала алат (колдоо кызматынан сураңыз)."], hasWarning: true },
+        { q: "Товар кайсы учурларда кайтарылбайт?", lines: ["Заказды оплатагандан кийин","Кардар тарабынан туура эмес көрсөтүлгөн заказ маалыматтарында","Ташуу учурундагы майда жаракаттарда","45 күндөн аз логистика же бажыхана кечигүүсүндө"], isList: true },
+        { q: "Камсыздандыруу", lines: ["Товар жоголуусу — жоголуу фактысы тастыкталгандан кийин 10 жумуш күнү ичинде акча кайтаруу","Товардын мазмунунун бузулушу — 100% кайтаруу","Товардын 40–50% бузулушу — бузулушка пропорционалдуу жарым-жартылай кайтаруу","45 күндөн ашык логистика/бажыхана кечигүүсү — акча кайтаруу"], isList: true, note: "Мындай жагдайлар өтө сейрек кездешет — биз көп жылдан бери иштейбиз жана беделибизди баалайбыз." },
       ],
     },
-    contacts: {
-      title: "Байланыш",
-      subtitle: "Ыңгайлуу каналды тандаңыз",
-      botCta: "Telegram-ботко жазуу",
-      items: [
-        { platform: "Telegram",  handle: "@Japan_Logistics",  url: BOT_LINK,                                 desc: "Негизги колдоо каналы",         abbr: "TG" },
-        { platform: "Instagram", handle: "@japan.logistics",  url: "https://instagram.com/japan.logistics",  desc: "Жаңылыктар жана акциялар",      abbr: "IG" },
-        { platform: "WhatsApp",  handle: "Japan Logistics",   url: "https://wa.me/",                         desc: "Шашылыш суроолор үчүн",         abbr: "WA" },
-      ],
+    commission: {
+      title: "Комиссия жана колдоо", tableTitle: "Комиссия таблицасы",
+      countryNames: { KG: "Кыргызстан", KZ: "Казакстан", UZ: "Өзбекстан", RU: "Россия" },
+      tableNote: "сайттагы товардын баасынан Токиодогу складга ички жеткирүү жана нак төлөм комиссиясы эске алынган",
+      calcTitle: "Комиссия калькулятору",
+      calcCountryLabel: "Өлкө", calcPriceLabel: "Сайттагы товардын баасы (¥)",
+      calcDeliveryLabel: "Токио складына жеткирүү баасы (¥)",
+      calcCodLabel: "Нак төлөм (белгиленген)", calcBtn: "Эсептөө", calcResultLabel: "Жыйынтык",
+      calcOptions: [{ value: "KG", label: "Кыргызстан (5%)" },{ value: "KZ", label: "Казакстан (8%)" },{ value: "UZ", label: "Өзбекстан (10%)" },{ value: "RU", label: "Россия (14%)" }],
+      supportTitle: "Колдоо",
+      closing: "Ийгиликтүү кызматташтык жана жакшы сатып алуулар каалайбыз!",
     },
     footer: "Япония → Өзбекстан / Кыргызстан / Казакстан / Россия",
   },
 
-  EN: {
-    nav: ["Guide", "Stores", "FAQ", "Contacts"],
-    botBtn: "Back to bot",
-    hero: {
-      badge: "Customer knowledge base",
-      title: "Japan Logistics\nHelp Center",
-      subtitle: "Complete guide to the Telegram bot: registration, orders from Japan, payment and delivery tracking.",
+  KZ: {
+    nav: ["Тіркеу", "Дүкендер", "FAQ", "Комиссия"],
+    botBtn: "Ботқа оралу",
+    welcome: "Japan Logistics компаниясының Telegram-боты бойынша нұсқаулыққа қош келдіңіз (сату бөлімі). Нұсқаулықты қадамдық орындаңыз.",
+    navCards: [
+      { title: "Тіркеу және нұсқаулық", subtitle: "Ботты пайдалану бойынша нұсқаулық" },
+      { title: "Дүкендерге шолу", subtitle: "Uniqlo, Amazon, Rakuten" },
+      { title: "Сұрақтар мен жауаптар", subtitle: "Жиі қойылатын сұрақтар" },
+      { title: "Комиссия және қолдау", subtitle: "Тарифтер мен байланыс" },
+    ],
+    reg: {
+      title: "Тіркеу және нұсқаулық",
+      s11title: "1.1 Старт және тіл таңдау", s11text: "Старт түймесін басып, тілді таңдаңыз",
+      s12title: "1.2 Тіркеу",
+      s12fields: ["Толық аты-жөні","Ел (тауар жеткізілетін жер)","Жеткізу еліндегі алушының телефон нөмірі","WhatsApp нөмірі","Электрондық пошта","Telegram (@username немесе сілтеме)","Алушының нақты мекенжайы","Құпиясөз (кемінде 8 қайталанбайтын таңба, мысалы: Qwer1202)"],
+      s13title: "1.3 Бот интерфейсіне шолу",
+      s13items: ["Клиенттер базасындағы сіздің ID'іңіз","Әр айдағы сатып алулар мен саны","Жаңа тапсырыс — алдын ала тапсырыс беру","Менің тапсырыстарым — мәртебелер мен тарих","Бухгалтерия — тапсырыстар есебі (соммалар, саны, бас тартылғандар) жыл/ай/апта/күн","Профиль — деректерді өзгерту (аты, байланыс, мекенжай)","Алдын ала тапсырыс — кейінірек тапсырыс беру үшін тауарлар қосу"],
+      s14title: "1.4 Бейне нұсқаулық",
+      s14warning: "Сілтемелерді, артикулді (жапон сайттарындағы тауар коды), өлшемді және түсті жапон сайтындағыдай дәл жазыңыз. Дұрыс толтырылмаса, тапсырыс бас тартылуы мүмкін.",
+      imgPlaceholder: "Сурет кейінірек қосылады",
     },
-    guide: {
-      title: "Bot Instructions",
-      subtitle: "From registration to delivery — 5 simple steps",
-      steps: [
-        { icon: "01", title: "Registration",        desc: "Press 'Register' in the bot. Enter your name, phone number, country and delivery address. Takes less than 2 minutes." },
-        { icon: "02", title: "Getting Client ID",   desc: "After registration you receive a unique Client ID. Use it in the address field when ordering on Japanese websites." },
-        { icon: "03", title: "Creating an Order",   desc: "Find the product, copy the link and send it to the bot. Specify size, color and quantity — the admin will calculate the cost." },
-        { icon: "04", title: "Payment",             desc: "Receive a quote: product price + commission + domestic delivery in Japan. Transfer the amount and attach a screenshot of the receipt." },
-        { icon: "05", title: "Tracking",            desc: "Track your order status: new → awaiting payment → paid → purchasing → purchased → completed." },
-      ],
-    },
-    videos: {
-      title: "Video Guides",
-      subtitle: "Detailed videos for each step",
-      placeholder: "Video coming soon",
+    shops: {
+      title: "Дүкендерге шолу", videoPlaceholder: "Бейне кейінірек қосылады",
       items: [
-        { title: "Bot Registration",        desc: "Step-by-step from /start to receiving your Client ID", youtubeId: "yT-fRiYhMPY" },
-        { title: "How to Place an Order",   desc: "From product link to admin confirmation" },
-        { title: "Payment & Tracking",      desc: "How to pay, attach receipt and track your order status" },
-      ],
-    },
-    stores: {
-      title: "Japanese Stores",
-      subtitle: "Popular online stores to order via Japan Logistics",
-      openBtn: "Open store",
-      items: [
-        { id: "uniqlo",  desc: "Japanese clothing chain. Quality basics at accessible prices.",                              features: ["Wardrobe basics", "Heat technology", "Seasonal collections"] },
-        { id: "gu",      desc: "Youth brand by Uniqlo Group. Trendy items at low prices.",                                   features: ["Fashion trends", "Affordable prices", "Wide range"] },
-        { id: "amazon",  desc: "Japan's largest marketplace. Electronics, cosmetics, clothing and much more.",               features: ["Fast delivery", "Official brands", "Huge selection"] },
-        { id: "rakuten", desc: "Popular marketplace with thousands of stores and frequent sales.",                           features: ["Sales & coupons", "Many sellers", "Loyalty points"] },
-        { id: "yahoo",   desc: "Yahoo! Shopping — large marketplace with auctions and great prices.",                       features: ["Auctions", "PayPay cashback", "Exclusive items"] },
-        { id: "mercari", desc: "Japan's C2C service. New and used items from private sellers at low prices.",               features: ["Used goods", "Low prices", "Unique finds"] },
-        { id: "kakaku",  desc: "Price comparison service. Find the best price on any product in Japan.",                    features: ["Price comparison", "Product ratings", "Buyer reviews"] },
+        { name: "Uniqlo Japan", url: "https://www.uniqlo.com/jp/", linkText: "Uniqlo ашу" },
+        { name: "Amazon Japan", url: "https://www.amazon.co.jp/", linkText: "Amazon ашу" },
+        { name: "Rakuten Ichiba", url: "https://ichiba.rakuten.co.jp/", linkText: "Rakuten ашу" },
       ],
     },
     faq: {
-      title: "Frequently Asked Questions",
-      subtitle: "Answers to the most popular questions",
+      title: "Сұрақтар мен жауаптар",
       items: [
-        { q: "How much does delivery cost?",              a: "Domestic delivery in Japan to warehouse — from 500 JPY. International delivery is calculated by actual or volumetric weight (whichever is greater). Final cost depends on destination country and package size." },
-        { q: "How is volumetric weight calculated?",      a: "Volumetric weight = (length × width × height in cm) ÷ 5000. If volumetric weight exceeds actual, it is used for calculation. Recommend checking with the admin before ordering large items." },
-        { q: "What payment methods are accepted?",        a: "USDT (TRC20, ERC20), cash at office, bank transfer. The admin will send payment details after order confirmation. Payment must be confirmed with a receipt screenshot." },
-        { q: "How long does delivery take?",              a: "Typically 10–25 business days: 3–7 days to purchase the item in Japan, plus 7–18 days for international delivery. Times may vary depending on customs workload." },
-        { q: "What do order statuses mean?",              a: "'New' — request received. 'Awaiting payment' — admin calculated cost. 'Paid' — payment received. 'Purchasing' — admin is placing order. 'Purchased' — item heading to warehouse. 'Completed' — delivered to you." },
-        { q: "Can I cancel my order?",                   a: "Cancellation is possible before 'Purchasing' status. After purchasing begins, cancellation is not guaranteed. Write to the admin in the bot — they will review your request." },
+        { q: "БАД, дәрумендер, косметика, қымбат брендтер тапсырыс беруге болады ма?", lines: ["Иә. Логистеріміз тауарларды кедендік тазалаумен бірге кілт астында жеткізеді. Сізге тек қалаңызға жеткенде жүкті алу қалады."] },
+        { q: "Салмақ, өлшем және баға бойынша шектеулер бар ма?", lines: ["Жоқ, авиатасымалдаудың негізгі шектеулерінен және ірі габаритті жүкті есептеуден басқа."] },
+        { q: "Төлем қалай жүзеге асырылады?", lines: ["Еліңіздегі ішкі шотқа төлем.","⚠️ Назар аударыңыз! Платформамыздан тыс төлем жасамаңыз. Төлемді тек ресми әлеуметтік желілерімізден ресми администраторлар ғана қабылдай алады (қолдауға сұраңыз)."], hasWarning: true },
+        { q: "Тауар қай жағдайларда қайтарылмайды?", lines: ["Тапсырыс төленгеннен кейін","Клиент дұрыс көрсетпеген тапсырыс деректерімен","Тасымалдау кезіндегі шамалы зақымдануда","45 күннен аз логистика немесе кедендік кешігуде"], isList: true },
+        { q: "Сақтандыру", lines: ["Тауар жоғалуы — жоғалу фактысы расталғаннан кейін 10 жұмыс күні ішінде қаражат қайтару","Тауар мазмұнының зақымдануы — 100% қайтару","Тауардың 40–50% зақымдануы — зақымдануға пропорционалды ішінара қайтару","45 күннен астам логистика/кедендік кешігу — қаражат қайтару"], isList: true, note: "Мұндай жағдайлар өте сирек кездеседі — біз ұзақ жылдан бері жұмыс істейміз және беделімізді бағалаймыз." },
       ],
     },
-    contacts: {
-      title: "Contacts",
-      subtitle: "Choose a convenient channel to reach us",
-      botCta: "Message Telegram Bot",
-      items: [
-        { platform: "Telegram",  handle: "@Japan_Logistics",  url: BOT_LINK,                                 desc: "Main support channel",       abbr: "TG" },
-        { platform: "Instagram", handle: "@japan.logistics",  url: "https://instagram.com/japan.logistics",  desc: "News, deals, updates",       abbr: "IG" },
-        { platform: "WhatsApp",  handle: "Japan Logistics",   url: "https://wa.me/",                         desc: "For urgent questions",       abbr: "WA" },
-      ],
+    commission: {
+      title: "Комиссия және қолдау", tableTitle: "Комиссия кестесі",
+      countryNames: { KG: "Қырғызстан", KZ: "Қазақстан", UZ: "Өзбекстан", RU: "Ресей" },
+      tableNote: "сайттағы тауар бағасынан Токиодағы қоймаға ішкі жеткізу және жеткізу комиссиясы ескерілген",
+      calcTitle: "Комиссия калькуляторы",
+      calcCountryLabel: "Ел", calcPriceLabel: "Сайттағы тауар бағасы (¥)",
+      calcDeliveryLabel: "Токио қоймасына жеткізу бағасы (¥)",
+      calcCodLabel: "Жеткізу төлемі (белгіленген)", calcBtn: "Есептеу", calcResultLabel: "Жиыны",
+      calcOptions: [{ value: "KG", label: "Қырғызстан (5%)" },{ value: "KZ", label: "Қазақстан (8%)" },{ value: "UZ", label: "Өзбекстан (10%)" },{ value: "RU", label: "Ресей (14%)" }],
+      supportTitle: "Қолдау",
+      closing: "Табысты ынтымақтастық және жақсы сатып алулар тілейміз!",
     },
-    footer: "Japan → Uzbekistan / Kyrgyzstan / Kazakhstan / Russia",
+    footer: "Жапония → Өзбекстан / Қырғызстан / Қазақстан / Ресей",
   },
 };
-
-const NAV_IDS = ["guide", "stores", "faq", "contacts"] as const;
 
 export default function Home() {
   const [lang, setLang]       = useState<Lang>("RU");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [calcCountry, setCalcCountry] = useState<Lang>("RU");
+  const [calcPrice, setCalcPrice]     = useState("");
+  const [calcDelivery, setCalcDelivery] = useState("");
+  const [calcResult, setCalcResult]   = useState<number | null>(null);
   const t = content[lang];
 
-  const storeMap = Object.fromEntries(
-    t.stores.items.map((s) => [s.id, s])
-  ) as Record<StoreId, StoreInfo>;
+  function calculate() {
+    const price    = parseFloat(calcPrice)    || 0;
+    const delivery = parseFloat(calcDelivery) || 0;
+    const total    = (price + delivery + 330) * (1 + RATES[calcCountry]);
+    setCalcResult(Math.round(total));
+  }
 
   return (
     <main className="min-h-screen bg-[#fafafa] text-zinc-950">
 
-      {/* ── Header ───────────────────────────────────────────────────── */}
+      {/* Header */}
       <header className="sticky top-0 z-50 border-b border-zinc-200/70 bg-white/90 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4">
-
-          {/* Logo */}
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-700 text-white shadow-lg shadow-red-200">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-700 text-white shadow-lg shadow-red-200">
               <span className="text-sm font-black">JL</span>
             </div>
             <div className="hidden sm:block">
@@ -339,388 +322,288 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Desktop nav */}
-          <nav className="hidden items-center gap-7 text-sm font-bold text-zinc-600 lg:flex">
-            {t.nav.map((label, i) => (
-              <a key={i} href={`#${NAV_IDS[i]}`} className="hover:text-red-700 transition-colors">
-                {label}
-              </a>
-            ))}
-          </nav>
-
-          {/* Lang switcher + CTA */}
           <div className="flex items-center gap-2">
             <div className="hidden rounded-2xl border border-zinc-200 bg-zinc-50 p-1 sm:flex">
-              {(["RU", "UZ", "KG", "EN"] as Lang[]).map((l) => (
-                <button
-                  key={l}
-                  onClick={() => setLang(l)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-black transition ${
-                    lang === l
-                      ? "bg-red-700 text-white shadow"
-                      : "text-zinc-500 hover:bg-white hover:text-zinc-900"
-                  }`}
-                >
+              {(["RU","UZ","KG","KZ"] as Lang[]).map((l) => (
+                <button key={l} onClick={() => setLang(l)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-black transition ${lang===l ? "bg-red-700 text-white shadow" : "text-zinc-500 hover:bg-white hover:text-zinc-900"}`}>
                   {l}
                 </button>
               ))}
             </div>
-            <a
-              href={BOT_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-2xl bg-red-700 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-red-200 hover:bg-red-800 transition-colors whitespace-nowrap"
-            >
+            <a href={BOT_LINK} target="_blank" rel="noopener noreferrer"
+              className="rounded-2xl bg-red-700 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-red-200 hover:bg-red-800 transition-colors whitespace-nowrap">
               {t.botBtn}
             </a>
           </div>
         </div>
-
-        {/* Mobile lang + nav row */}
-        <div className="flex items-center gap-2 overflow-x-auto border-t border-zinc-100 px-5 py-2.5 sm:hidden">
-          {(["RU", "UZ", "KG", "EN"] as Lang[]).map((l) => (
-            <button
-              key={l}
-              onClick={() => setLang(l)}
-              className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-black transition ${
-                lang === l ? "bg-red-700 text-white" : "bg-zinc-100 text-zinc-600"
-              }`}
-            >
+        {/* mobile lang row */}
+        <div className="flex gap-2 overflow-x-auto border-t border-zinc-100 px-5 py-2.5 sm:hidden">
+          {(["RU","UZ","KG","KZ"] as Lang[]).map((l) => (
+            <button key={l} onClick={() => setLang(l)}
+              className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-black transition ${lang===l ? "bg-red-700 text-white" : "bg-zinc-100 text-zinc-600"}`}>
               {l}
             </button>
-          ))}
-          <div className="mx-2 h-4 w-px bg-zinc-200 shrink-0" />
-          {t.nav.map((label, i) => (
-            <a
-              key={i}
-              href={`#${NAV_IDS[i]}`}
-              className="shrink-0 text-xs font-bold text-zinc-500 hover:text-red-700 transition-colors"
-            >
-              {label}
-            </a>
           ))}
         </div>
       </header>
 
-      {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden px-5 py-20 md:py-32">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,#fee2e2_0%,transparent_50%),linear-gradient(to_bottom,#ffffff,transparent_80%)]" />
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-[radial-gradient(ellipse_at_top_right,#fff7f0,transparent_60%)]" />
-
-        <div className="relative mx-auto max-w-7xl">
-          <div className="inline-flex rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-black text-red-700 shadow-sm mb-8">
-            {t.hero.badge}
+      {/* Welcome */}
+      <section className="relative overflow-hidden bg-white px-5 py-16 md:py-24">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,#fee2e2_0%,transparent_50%)]" />
+        <div className="relative mx-auto max-w-5xl">
+          <div className="inline-flex rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-black text-red-700 shadow-sm mb-6">
+            Japan Logistics — Help Center
           </div>
+          <p className="max-w-3xl text-xl md:text-2xl font-medium leading-8 text-zinc-700">{t.welcome}</p>
 
-          <h1 className="text-5xl font-black leading-[1.02] tracking-tight md:text-8xl whitespace-pre-line">
-            {t.hero.title}
-          </h1>
-
-          <p className="mt-8 max-w-2xl text-lg leading-8 text-zinc-600 md:text-xl">
-            {t.hero.subtitle}
-          </p>
-
-          <div className="mt-10 flex flex-wrap gap-4">
-            <a
-              href={BOT_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-2xl bg-red-700 px-7 py-4 font-black text-white shadow-xl shadow-red-200/60 hover:bg-red-800 transition-colors"
-            >
-              {t.botBtn} →
-            </a>
-            <a
-              href="#guide"
-              className="rounded-2xl border-2 border-zinc-200 bg-white px-7 py-4 font-black text-zinc-700 hover:border-red-200 hover:text-red-700 transition-colors"
-            >
-              {t.nav[0]}
-            </a>
-          </div>
-
-          {/* Stats row */}
-          <div className="mt-16 grid grid-cols-2 gap-6 md:grid-cols-4">
-            {[
-              ["4", t.nav[3] === "Contacts" ? "Countries" : t.nav[3] === "Контакты" ? "Страны" : t.nav[3] === "Kontaktlar" ? "Mamlakatlar" : "Өлкөлөр"],
-              ["7", t.nav[1]],
-              ["5", t.nav[0] === "Guide" ? "Steps" : t.nav[0] === "Инструкция" ? "Шагов" : t.nav[0] === "Yo'riqnoma" ? "Qadamlar" : "Кадамдар"],
-              ["24/7", "Support"],
-            ].map(([num, label]) => (
-              <div key={num} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-                <div className="text-3xl font-black text-red-700">{num}</div>
-                <div className="mt-1 text-sm font-bold text-zinc-500">{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Guide ────────────────────────────────────────────────────── */}
-      <section id="guide" className="bg-white px-5 py-20">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-14 max-w-2xl">
-            <div className="mb-3 text-sm font-black uppercase tracking-[0.3em] text-red-700">01</div>
-            <h2 className="text-3xl font-black tracking-tight md:text-5xl">{t.guide.title}</h2>
-            <p className="mt-4 text-zinc-500 text-lg">{t.guide.subtitle}</p>
-          </div>
-
-          <div className="relative">
-            {/* connecting line (desktop) */}
-            <div className="absolute left-7 top-10 bottom-10 w-px bg-red-100 hidden md:block" />
-
-            <div className="space-y-6">
-              {t.guide.steps.map((step, i) => (
-                <div key={step.icon} className="relative flex gap-6 md:gap-8">
-                  {/* number circle */}
-                  <div className={`relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl font-black text-lg shadow-lg transition ${
-                    i === 0 ? "bg-red-700 text-white shadow-red-200" : "bg-white border-2 border-red-100 text-red-700"
-                  }`}>
-                    {step.icon}
-                  </div>
-                  {/* content */}
-                  <div className="flex-1 rounded-[1.5rem] border border-zinc-200 bg-white p-6 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all">
-                    <h3 className="text-xl font-black tracking-tight">{step.title}</h3>
-                    <p className="mt-2 leading-7 text-zinc-600">{step.desc}</p>
-                  </div>
+          {/* 4 nav cards */}
+          <div className="mt-12 grid gap-4 grid-cols-2 md:grid-cols-4">
+            {t.navCards.map((card, i) => (
+              <a key={i} href={`#${NAV_IDS[i]}`}
+                className="group rounded-[1.5rem] border border-zinc-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl hover:border-red-200">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-sm font-black text-red-700 group-hover:bg-red-700 group-hover:text-white transition-colors mb-4">
+                  0{i+1}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-12">
-            <a
-              href={BOT_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex rounded-2xl bg-red-700 px-7 py-4 font-black text-white shadow-lg shadow-red-200 hover:bg-red-800 transition-colors"
-            >
-              {t.botBtn}
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Videos ───────────────────────────────────────────────────── */}
-      <section id="videos" className="px-5 py-20">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-14 max-w-2xl">
-            <div className="mb-3 text-sm font-black uppercase tracking-[0.3em] text-red-700">02</div>
-            <h2 className="text-3xl font-black tracking-tight md:text-5xl">{t.videos.title}</h2>
-            <p className="mt-4 text-zinc-500 text-lg">{t.videos.subtitle}</p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {t.videos.items.map((video, i) => (
-              <div key={i} className="group rounded-[2rem] border border-zinc-200 bg-white overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1">
-                {video.youtubeId ? (
-                  <div className="relative aspect-video">
-                    <iframe
-                      src={`https://www.youtube.com/embed/${video.youtubeId}`}
-                      title={video.title}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      className="absolute inset-0 w-full h-full"
-                    />
-                  </div>
-                ) : (
-                  <div className="relative aspect-video bg-zinc-900 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle,#3f0000,#000)]" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-700 text-white shadow-2xl group-hover:scale-110 transition-transform">
-                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 ml-1">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="absolute bottom-3 left-4 text-xs font-black text-white/50">
-                      {t.videos.placeholder}
-                    </div>
-                    <div className="absolute top-3 left-3 rounded-full bg-red-700 px-2.5 py-1 text-xs font-black text-white">
-                      0{i + 1}
-                    </div>
-                  </div>
-                )}
-                <div className="p-6">
-                  <h3 className="text-lg font-black tracking-tight">{video.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-zinc-500">{video.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Stores ───────────────────────────────────────────────────── */}
-      <section id="stores" className="bg-white px-5 py-20">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-14 max-w-2xl">
-            <div className="mb-3 text-sm font-black uppercase tracking-[0.3em] text-red-700">03</div>
-            <h2 className="text-3xl font-black tracking-tight md:text-5xl">{t.stores.title}</h2>
-            <p className="mt-4 text-zinc-500 text-lg">{t.stores.subtitle}</p>
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {STORES.map((store) => {
-              const info = storeMap[store.id];
-              return (
-                <div
-                  key={store.id}
-                  className="group rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl flex flex-col"
-                >
-                  {/* store logo */}
-                  <div
-                    className="flex h-14 w-14 items-center justify-center rounded-2xl text-white font-black text-sm shadow-lg mb-5"
-                    style={{ backgroundColor: store.color }}
-                  >
-                    {store.abbr}
-                  </div>
-
-                  <h3 className="text-lg font-black tracking-tight">{store.name}</h3>
-                  <p className="mt-2 text-sm leading-6 text-zinc-500 flex-1">{info.desc}</p>
-
-                  {/* feature chips */}
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {info.features.map((f) => (
-                      <span key={f} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-600">
-                        {f}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* open button */}
-                  <a
-                    href={store.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-5 flex items-center justify-between rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-black text-zinc-700 transition group-hover:border-red-200 group-hover:bg-red-50 group-hover:text-red-700"
-                  >
-                    {t.stores.openBtn}
-                    <span className="ml-2">→</span>
-                  </a>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FAQ ──────────────────────────────────────────────────────── */}
-      <section id="faq" className="px-5 py-20">
-        <div className="mx-auto max-w-4xl">
-          <div className="mb-14 max-w-2xl">
-            <div className="mb-3 text-sm font-black uppercase tracking-[0.3em] text-red-700">04</div>
-            <h2 className="text-3xl font-black tracking-tight md:text-5xl">{t.faq.title}</h2>
-            <p className="mt-4 text-zinc-500 text-lg">{t.faq.subtitle}</p>
-          </div>
-
-          <div className="space-y-3">
-            {t.faq.items.map((item, i) => (
-              <div
-                key={i}
-                className={`rounded-[1.5rem] border transition-all overflow-hidden ${
-                  openFaq === i ? "border-red-200 bg-white shadow-lg" : "border-zinc-200 bg-white hover:border-zinc-300"
-                }`}
-              >
-                <button
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left"
-                >
-                  <span className="font-black text-base md:text-lg">{item.q}</span>
-                  <span className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition-all ${
-                    openFaq === i ? "bg-red-700 text-white rotate-45" : "bg-zinc-100 text-zinc-500"
-                  }`}>
-                    +
-                  </span>
-                </button>
-
-                <div className={`overflow-hidden transition-all duration-300 ${openFaq === i ? "max-h-96" : "max-h-0"}`}>
-                  <p className="px-6 pb-6 leading-7 text-zinc-600">{item.a}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Contacts ─────────────────────────────────────────────────── */}
-      <section id="contacts" className="bg-white px-5 py-20">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-14 max-w-2xl">
-            <div className="mb-3 text-sm font-black uppercase tracking-[0.3em] text-red-700">05</div>
-            <h2 className="text-3xl font-black tracking-tight md:text-5xl">{t.contacts.title}</h2>
-            <p className="mt-4 text-zinc-500 text-lg">{t.contacts.subtitle}</p>
-          </div>
-
-          {/* Main CTA */}
-          <a
-            href={BOT_LINK}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mb-10 flex items-center justify-between rounded-[2rem] bg-red-700 px-8 py-7 text-white shadow-2xl shadow-red-200 hover:bg-red-800 transition-colors"
-          >
-            <div>
-              <div className="text-2xl font-black md:text-3xl">{t.contacts.botCta}</div>
-              <div className="mt-1 text-red-200 font-medium">@Japan_Logistics</div>
-            </div>
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-2xl font-black">
-              TG
-            </div>
-          </a>
-
-          {/* Contact cards */}
-          <div className="grid gap-5 md:grid-cols-3">
-            {t.contacts.items.map((c) => (
-              <a
-                key={c.platform}
-                href={c.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex items-center gap-5 rounded-[1.5rem] border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl hover:border-red-200"
-              >
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 text-sm font-black text-zinc-700 group-hover:bg-red-700 group-hover:text-white transition-colors">
-                  {c.abbr}
-                </div>
-                <div>
-                  <div className="font-black text-lg">{c.platform}</div>
-                  <div className="text-sm text-zinc-500">{c.desc}</div>
-                  <div className="mt-1 text-sm font-bold text-red-700">{c.handle}</div>
-                </div>
+                <div className="font-black text-sm leading-tight">{card.title}</div>
+                <div className="mt-1 text-xs text-zinc-500">{card.subtitle}</div>
               </a>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Footer ───────────────────────────────────────────────────── */}
-      <footer className="border-t border-zinc-200 bg-[#fafafa] px-5 py-10">
-        <div className="mx-auto flex max-w-7xl flex-col justify-between gap-5 md:flex-row md:items-center">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-700 text-white">
-                <span className="text-xs font-black">JL</span>
-              </div>
-              <span className="text-lg font-black">Japan Logistics</span>
-            </div>
-            <div className="text-zinc-500 text-sm">{t.footer}</div>
+      {/* Section 1 — Registration */}
+      <section id="registration" className="px-5 py-16">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-10">
+            <div className="mb-2 text-sm font-black uppercase tracking-[0.3em] text-red-700">01</div>
+            <h2 className="text-3xl font-black tracking-tight md:text-5xl">{t.reg.title}</h2>
           </div>
 
-          <div className="flex flex-wrap gap-4 items-center">
-            <div className="hidden rounded-2xl border border-zinc-200 bg-white p-1 flex gap-0">
-              {(["RU", "UZ", "KG", "EN"] as Lang[]).map((l) => (
-                <button
-                  key={l}
-                  onClick={() => setLang(l)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-black transition ${
-                    lang === l ? "bg-red-700 text-white" : "text-zinc-400 hover:text-zinc-700"
-                  }`}
-                >
-                  {l}
+          {/* 1.1 */}
+          <div className="mb-10 rounded-[2rem] border border-zinc-200 bg-white p-7 shadow-sm">
+            <h3 className="text-xl font-black mb-4">{t.reg.s11title}</h3>
+            <p className="text-zinc-600 mb-6">{t.reg.s11text}</p>
+            <GuideImg src="img/1111.jpg" alt="Step 1.1" placeholder={t.reg.imgPlaceholder} />
+          </div>
+
+          {/* 1.2 */}
+          <div className="mb-10 rounded-[2rem] border border-zinc-200 bg-white p-7 shadow-sm">
+            <h3 className="text-xl font-black mb-4">{t.reg.s12title}</h3>
+            <ol className="space-y-2 mb-6">
+              {t.reg.s12fields.map((f, i) => (
+                <li key={i} className="flex gap-3">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-700 text-white text-xs font-black mt-0.5">{i+1}</span>
+                  <span className="text-zinc-700">{f}</span>
+                </li>
+              ))}
+            </ol>
+            <GuideImg src="img/121.jpg" alt="Registration" placeholder={t.reg.imgPlaceholder} />
+            <div className="mt-6"><BotBtn label={t.botBtn} /></div>
+          </div>
+
+          {/* 1.3 */}
+          <div className="mb-10 rounded-[2rem] border border-zinc-200 bg-white p-7 shadow-sm">
+            <h3 className="text-xl font-black mb-4">{t.reg.s13title}</h3>
+            <ol className="space-y-2 mb-6">
+              {t.reg.s13items.map((item, i) => (
+                <li key={i} className="flex gap-3">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-700 text-xs font-black mt-0.5">{i+1}</span>
+                  <span className="text-zinc-700">{item}</span>
+                </li>
+              ))}
+            </ol>
+            <GuideImg src="img/131.jpg" alt="Bot interface" placeholder={t.reg.imgPlaceholder} />
+            <div className="mt-6"><BotBtn label={t.botBtn} /></div>
+          </div>
+
+          {/* 1.4 */}
+          <div className="rounded-[2rem] border border-zinc-200 bg-white p-7 shadow-sm">
+            <h3 className="text-xl font-black mb-4">{t.reg.s14title}</h3>
+            <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+              <p className="text-amber-900 font-medium leading-7">⚠️ {t.reg.s14warning}</p>
+            </div>
+            <VideoBlock placeholder={t.shops.videoPlaceholder} />
+            <div className="mt-6"><BotBtn label={t.botBtn} /></div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 2 — Shops */}
+      <section id="shops" className="bg-white px-5 py-16">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-10">
+            <div className="mb-2 text-sm font-black uppercase tracking-[0.3em] text-red-700">02</div>
+            <h2 className="text-3xl font-black tracking-tight md:text-5xl">{t.shops.title}</h2>
+          </div>
+
+          <div className="space-y-8">
+            {t.shops.items.map((store) => (
+              <div key={store.name} className="rounded-[2rem] border border-zinc-200 bg-[#fafafa] p-7 shadow-sm">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-xl font-black">{store.name}</h3>
+                  <a href={store.url} target="_blank" rel="noopener noreferrer"
+                    className="rounded-2xl border border-zinc-200 bg-white px-4 py-2 text-sm font-black text-zinc-700 hover:border-red-200 hover:text-red-700 transition-colors">
+                    {store.linkText} →
+                  </a>
+                </div>
+                <VideoBlock placeholder={t.shops.videoPlaceholder} />
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10"><BotBtn label={t.botBtn} /></div>
+        </div>
+      </section>
+
+      {/* Section 3 — FAQ */}
+      <section id="faq" className="px-5 py-16">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-10">
+            <div className="mb-2 text-sm font-black uppercase tracking-[0.3em] text-red-700">03</div>
+            <h2 className="text-3xl font-black tracking-tight md:text-5xl">{t.faq.title}</h2>
+          </div>
+
+          <div className="space-y-3">
+            {t.faq.items.map((item, i) => (
+              <div key={i} className={`rounded-[1.5rem] border overflow-hidden transition-all ${openFaq===i ? "border-red-200 bg-white shadow-lg" : "border-zinc-200 bg-white"}`}>
+                <button onClick={() => setOpenFaq(openFaq===i ? null : i)}
+                  className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left">
+                  <span className="font-black text-base">{item.q}</span>
+                  <span className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-lg font-black transition-all ${openFaq===i ? "bg-red-700 text-white rotate-45" : "bg-zinc-100 text-zinc-500"}`}>+</span>
                 </button>
+                <div className={`overflow-hidden transition-all duration-300 ${openFaq===i ? "max-h-[600px]" : "max-h-0"}`}>
+                  <div className="px-6 pb-6 space-y-3">
+                    {item.isList ? (
+                      <ol className="space-y-2">
+                        {item.lines.map((line, j) => (
+                          <li key={j} className="flex gap-3">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 text-xs font-black mt-0.5">{j+1}</span>
+                            <span className="text-zinc-600 leading-6">{line}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      item.lines.map((line, j) => (
+                        <p key={j} className={`leading-7 ${item.hasWarning && j===1 ? "rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900 font-medium text-sm" : "text-zinc-600"}`}>{line}</p>
+                      ))
+                    )}
+                    {item.note && <p className="mt-3 text-sm text-zinc-400 italic">{item.note}</p>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Section 4 — Commission */}
+      <section id="commission" className="bg-white px-5 py-16">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-10">
+            <div className="mb-2 text-sm font-black uppercase tracking-[0.3em] text-red-700">04</div>
+            <h2 className="text-3xl font-black tracking-tight md:text-5xl">{t.commission.title}</h2>
+          </div>
+
+          {/* Table */}
+          <div className="mb-10 rounded-[2rem] border border-zinc-200 overflow-hidden shadow-sm">
+            <div className="bg-zinc-50 px-6 py-4 border-b border-zinc-200">
+              <h3 className="font-black text-lg">{t.commission.tableTitle}</h3>
+            </div>
+            <table className="w-full">
+              <tbody>
+                {(["KG","KZ","UZ","RU"] as Lang[]).map((c, i) => (
+                  <tr key={c} className={i % 2 === 0 ? "bg-white" : "bg-zinc-50/50"}>
+                    <td className="px-6 py-4 font-bold">{t.commission.countryNames[c]}</td>
+                    <td className="px-6 py-4 text-right font-black text-red-700 text-xl">{Math.round(RATES[c]*100)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="px-6 py-3 bg-zinc-50 border-t border-zinc-100">
+              <p className="text-xs text-zinc-500 italic">* {t.commission.tableNote}</p>
+            </div>
+          </div>
+
+          {/* Calculator */}
+          <div className="mb-10 rounded-[2rem] border border-zinc-200 bg-[#fafafa] p-7 shadow-sm">
+            <h3 className="font-black text-xl mb-6">{t.commission.calcTitle}</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-zinc-600 mb-1">{t.commission.calcCountryLabel}</label>
+                <select value={calcCountry} onChange={e => { setCalcCountry(e.target.value as Lang); setCalcResult(null); }}
+                  className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 font-bold text-zinc-800 focus:outline-none focus:border-red-300">
+                  {t.commission.calcOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-zinc-600 mb-1">{t.commission.calcPriceLabel}</label>
+                <input type="number" value={calcPrice} onChange={e => { setCalcPrice(e.target.value); setCalcResult(null); }} placeholder="¥ 0"
+                  className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 font-bold text-zinc-800 focus:outline-none focus:border-red-300" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-zinc-600 mb-1">{t.commission.calcDeliveryLabel}</label>
+                <input type="number" value={calcDelivery} onChange={e => { setCalcDelivery(e.target.value); setCalcResult(null); }} placeholder="¥ 0"
+                  className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 font-bold text-zinc-800 focus:outline-none focus:border-red-300" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-zinc-600 mb-1">{t.commission.calcCodLabel}</label>
+                <div className="w-full rounded-2xl border border-zinc-100 bg-zinc-100 px-4 py-3 font-bold text-zinc-500">¥ 330</div>
+              </div>
+              <button onClick={calculate}
+                className="w-full rounded-2xl bg-red-700 py-4 font-black text-white shadow-lg shadow-red-200 hover:bg-red-800 transition-colors">
+                {t.commission.calcBtn}
+              </button>
+              {calcResult !== null && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-5 text-center">
+                  <div className="text-sm font-bold text-red-600 mb-1">{t.commission.calcResultLabel}</div>
+                  <div className="text-4xl font-black text-red-700">¥ {calcResult.toLocaleString()}</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Support */}
+          <div className="mb-10 rounded-[2rem] border border-zinc-200 bg-[#fafafa] p-7 shadow-sm">
+            <h3 className="font-black text-xl mb-6">{t.commission.supportTitle}</h3>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[
+                { label: "Telegram", href: "https://t.me/japanlogistics", abbr: "TG" },
+                { label: "WhatsApp", href: "https://wa.me/817090344425", abbr: "WA" },
+                { label: "Email", href: "mailto:japanlogistics.to@gmail.com", abbr: "@" },
+              ].map(c => (
+                <a key={c.label} href={c.href} target="_blank" rel="noopener noreferrer"
+                  className="group flex items-center gap-4 rounded-2xl border border-zinc-200 bg-white p-5 hover:border-red-200 hover:shadow-lg transition-all">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-zinc-100 font-black text-zinc-700 group-hover:bg-red-700 group-hover:text-white transition-colors">
+                    {c.abbr}
+                  </div>
+                  <span className="font-black">{c.label}</span>
+                </a>
               ))}
             </div>
-            <a href={BOT_LINK} target="_blank" rel="noopener noreferrer" className="font-black text-red-700 hover:text-red-800 transition-colors">
-              {t.botBtn} →
-            </a>
           </div>
+
+          <p className="text-center text-lg font-bold text-zinc-600 mb-8">{t.commission.closing}</p>
+          <div className="text-center"><BotBtn label={t.botBtn} /></div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-zinc-200 bg-[#fafafa] px-5 py-10">
+        <div className="mx-auto flex max-w-5xl flex-col justify-between gap-4 md:flex-row md:items-center">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-700 text-white">
+              <span className="text-xs font-black">JL</span>
+            </div>
+            <div>
+              <div className="font-black">Japan Logistics</div>
+              <div className="text-sm text-zinc-500">{t.footer}</div>
+            </div>
+          </div>
+          <a href={BOT_LINK} target="_blank" rel="noopener noreferrer" className="font-black text-red-700 hover:text-red-800 transition-colors">
+            {t.botBtn} →
+          </a>
         </div>
       </footer>
     </main>

@@ -302,7 +302,7 @@ export default function Home() {
   function calculate() {
     const price    = parseFloat(calcPrice)    || 0;
     const delivery = parseFloat(calcDelivery) || 0;
-    const total    = (price + delivery + 330) * (1 + RATES[calcCountry]);
+    const total    = price * (1 + RATES[calcCountry]) + delivery + 330;
     setCalcResult(Math.round(total));
   }
 
